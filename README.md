@@ -6,7 +6,7 @@ PawPets es una tienda de productos para mascotas. La Evaluación 3 lleva el fron
 
 > **Sitio publicado:** https://caso3pawpetsfinal-production.up.railway.app
 >
-> **Estado actual:** el frontend está completo y publicado en Railway. Todavía usa datos estáticos en JSON. El backend Spring Boot, la base de datos y la conexión con la API están pendientes; ver [Checklist de la Evaluación 3](#checklist-de-la-evaluación-3).
+> **Estado actual:** el frontend está publicado en Railway y ya pide el catálogo a la API (`/api/productos` y `/api/categorias`). Mientras el backend no responda, usa los JSON de `src/datos` como respaldo. El backend se desarrolla en [andcarrasco/backPawPets](https://github.com/andcarrasco/backPawPets); ver [Checklist de la Evaluación 3](#checklist-de-la-evaluación-3).
 
 ## Integrantes
 
@@ -22,15 +22,15 @@ El reparto de tareas de la Evaluación 3 está por definir.
 ## Arquitectura
 
 ```
-Navegador ──► Frontend React (Railway) ──HTTP/JSON──► API REST Spring Boot (Railway) ──► Base de datos (Railway)
+Navegador ──► Frontend React (Railway) ──HTTP/JSON──► API REST Spring Boot (Railway) ──► MongoDB Atlas
 ```
 
 | Parte | Tecnología | Estado |
 | --- | --- | --- |
-| Frontend | React 19, Vite 8, React Router 7, Bootstrap 5 | Listo; usa JSON estático |
-| Backend | Spring Boot 3 (Spring Web, Spring Data JPA) en capas `model`, `repository`, `service`, `controller` | Pendiente |
-| Base de datos | Base de datos administrada de Railway (MySQL o PostgreSQL) | Pendiente |
-| Documentación de la API | Swagger con springdoc-openapi | Pendiente |
+| Frontend | React 19, Vite 8, React Router 7, Bootstrap 5, `fetch` | Listo; catálogo desde la API con respaldo en JSON |
+| Backend ([backPawPets](https://github.com/andcarrasco/backPawPets)) | Spring Boot 4.1.2, Java 17, Spring Data MongoDB, en capas `model`, `repository`, `service`, `controller` | En desarrollo |
+| Base de datos | MongoDB Atlas, base `pawpets` | Colección `productos` cargada |
+| Documentación de la API | Swagger con springdoc-openapi 3.2.0 | Pendiente |
 | Despliegue | Railway, con un servicio por parte dentro del mismo proyecto | Frontend publicado; backend y base de datos pendientes |
 
 ## API REST propuesta
@@ -49,7 +49,7 @@ Las categorías (`/api/categorias`), los usuarios (`/api/usuarios`) y los pedido
 
 Una vez publicado, el backend debe ofrecer:
 
-- **Swagger** en `/swagger-ui/index.html`, con todos los endpoints.
+- **Swagger** en `/swagger-ui.html`, con todos los endpoints.
 - **Manejo global de errores** con `@RestControllerAdvice`: un id inexistente devuelve un JSON con el mensaje, no una página de error.
 - **Validaciones** con `@NotBlank` y `@Valid`: un producto sin nombre devuelve `400`.
 - **CORS** que autorice el dominio del frontend en Railway y `http://localhost:5173` para desarrollo.
@@ -60,13 +60,15 @@ Se requiere Node.js compatible con Vite 8 y npm.
 
 ```bash
 npm ci
-npm run dev        # http://localhost:5173
+npm run dev        # http://localhost:5173 (reenvía /api a http://localhost:8081)
 npm run build      # compilación de producción en dist/
 npm run lint       # revisión con ESLint
 npm test -- --single-run
 ```
 
 Las pruebas usan Jasmine y Karma, y requieren Chrome o Chromium.
+
+Para ver datos de la base, levantar también el backend (`backPawPets`) en el puerto 8081. Si no está levantado, la tienda funciona igual con los JSON locales.
 
 ## Despliegue en Railway
 
@@ -82,18 +84,18 @@ Railway detecta el proyecto Vite, ejecuta `npm run build` y sirve la carpeta `di
 Pasos para crearlo desde cero:
 
 1. En [railway.com](https://railway.com), entrar con GitHub y elegir **New Project → Deploy from GitHub repo**.
-2. Elegir `andcarrasco/Caso3_PawPets_final`.
+2. Elegir `andcarrasco/frontPawPets`.
 3. En **Settings → Networking**, pulsar **Generate Domain** para obtener la URL pública.
 
 ### Conexión con el backend
 
-Cuando la API esté publicada, la dirección del backend no se escribe en el código. Se lee de una variable de entorno:
+La dirección del backend no se escribe en el código. Las llamadas pasan por `src/servicios/api.js`, que la lee de una variable de entorno (ver `.env.example`):
 
 | Servicio | Variable | Valor |
 | --- | --- | --- |
-| Frontend | `VITE_API_URL` | URL pública del backend, por ejemplo `https://pawpets-api.up.railway.app` |
-| Backend | `PORT` | La asigna Railway; en `application.properties` usar `server.port=${PORT:8080}` |
-| Backend | `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` | Datos de conexión de la base de datos de Railway |
+| Frontend | `VITE_API_URL` | URL pública del backend, por ejemplo `https://pawpets-api.up.railway.app`. En desarrollo queda vacía y se usa el proxy de Vite |
+| Backend | `PORT` | La asigna Railway; en `application.properties` usar `server.port=${PORT:8081}` |
+| Backend | `MONGODB_URI` | Cadena de conexión de MongoDB Atlas; en `application.properties` usar `spring.mongodb.uri=${MONGODB_URI}` |
 | Backend | Orígenes permitidos en CORS | URL pública del frontend |
 
 Vite incorpora `VITE_API_URL` al compilar. Por eso, si cambia, hay que volver a desplegar el frontend.
@@ -110,7 +112,7 @@ Las contraseñas y los datos de conexión se guardan solo en las variables de Ra
 
 ### Datos actuales
 
-Mientras no exista la API, el catálogo se lee de `src/datos/productos.json` y `src/datos/categorias.json`. El carrito y los pedidos viven en el estado de React y se pierden al recargar la página. La autenticación es simulada, así que la protección de rutas no reemplaza la autorización de un servidor. El pago y los comprobantes son demostrativos.
+`App.jsx` pide el catálogo con el hook `src/hooks/useDatosApi.js`. Si la API no responde, usa `src/datos/productos.json` y `src/datos/categorias.json`. Usuarios y pedidos todavía son locales. El carrito y los pedidos viven en el estado de React y se pierden al recargar la página. La autenticación es simulada, así que la protección de rutas no reemplaza la autorización de un servidor. El pago y los comprobantes son demostrativos.
 
 ## Pruebas
 
@@ -142,11 +144,11 @@ Cuando exista la API, se probará además con una **colección de Postman** que 
 | Códigos de estado correctos con `ResponseEntity` (`201`, `204`, `404`) | ⬜ |
 | Manejo global de errores con `@RestControllerAdvice` | ⬜ |
 | Validaciones con `@NotBlank` y `@Valid` (`400`) | ⬜ |
-| Swagger funcionando en `/swagger-ui/index.html` | ⬜ |
-| Base de datos en Railway conectada al backend | ⬜ |
+| Swagger funcionando en `/swagger-ui.html` | ⬜ |
+| Base de datos (MongoDB Atlas) conectada al backend | ⬜ |
 | Backend publicado en Railway | ⬜ |
-| Frontend conectado a la API con Axios, en lugar del JSON estático | ⬜ |
-| URL del backend en `VITE_API_URL`, no escrita en el código | ⬜ |
+| Frontend conectado a la API con `fetch`, en lugar del JSON estático | 🟨 Catálogo listo; usuarios y pedidos pendientes |
+| URL del backend en `VITE_API_URL`, no escrita en el código | ✅ |
 | CORS configurado para el frontend local y el publicado | ⬜ |
 | Colección de Postman con el CRUD y un caso de error | ⬜ |
 

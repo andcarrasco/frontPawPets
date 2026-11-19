@@ -1,4 +1,4 @@
-// Catálogo compartido desde JSON y carrito en memoria mediante estado React.
+// Catálogo compartido desde la API (con respaldo en JSON) y carrito en memoria mediante estado React.
 import { useState } from 'react'
 import { BrowserRouter, Routes, Route, useLocation, Link } from 'react-router-dom'
 import Header from './componentes/Header.jsx'
@@ -20,8 +20,9 @@ import Carrito from './paginas/Carrito.jsx'
 import Checkout from './paginas/Checkout.jsx'
 import ResultadoCompra from './paginas/ResultadoCompra.jsx'
 import DetallePedido from './paginas/DetallePedido.jsx'
-import productos from './datos/productos.json'
-import categorias from './datos/categorias.json'
+import productosLocales from './datos/productos.json'
+import categoriasLocales from './datos/categorias.json'
+import useDatosApi from './hooks/useDatosApi.js'
 import { agregarAlCarrito, cambiarCantidad, quitarDelCarrito } from './servicios/carrito.js'
 import { confirmarCompra } from './servicios/compras.js'
 import { obtenerSesion, iniciarSesion, cerrarSesion } from './servicios/sesion.js'
@@ -43,6 +44,9 @@ export function ContenidoApp() {
   const [ultimoPedido, setUltimoPedido] = useState(null)
   const [pedidos, setPedidos] = useState([])
   const location = useLocation()
+  // Catálogo desde la API; si el backend no responde se usan los JSON locales.
+  const { datos: productos } = useDatosApi('/api/productos', productosLocales)
+  const { datos: categorias } = useDatosApi('/api/categorias', categoriasLocales)
 
   function agregar(id) {
     const producto = productos.find(producto => producto.id === id)
