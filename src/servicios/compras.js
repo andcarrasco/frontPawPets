@@ -1,5 +1,6 @@
-import { obtenerLineas, calcularTotal } from './carrito.js'
+import { obtenerLineas } from './carrito.js'
 import { regionesCompra } from '../datos/regionesCompra.js'
+import { obtenerDatos, enviarDatos } from './api.js'
 
 export function validarCliente(cliente) {
   if (!cliente.nombre.trim()) return 'Ingresa el nombre del cliente.'
@@ -28,30 +29,34 @@ export function validarCarritoCompra(carrito, productos) {
   return lineas
 }
 
-// Solo construye el resumen simulado; no escribe datos ni modifica el catálogo.
-export function confirmarCompra(carrito, cliente, productos, usuarioId = null) {
+// Arma el cuerpo de POST /api/pedidos. Solo envía ids y cantidades:
+// el backend pone nombre y precio desde la base de datos, calcula el total y descuenta el stock.
+export function armarPedido(carrito, cliente, productos, usuarioId = null) {
   const error = validarCliente(cliente)
   if (error) throw new Error(error)
+  validarCarritoCompra(carrito, productos)
 
-  const lineas = validarCarritoCompra(carrito, productos)
-  const pedido = {
-    id: Date.now(),
+  return {
     usuarioId,
     cliente: { nombre: cliente.nombre.trim(), email: cliente.email.trim() },
+    entrega: cliente.entrega,
     direccion: cliente.entrega === 'domicilio'
       ? { calle: cliente.direccion.trim(), region: cliente.region, comuna: cliente.comuna }
       : null,
-    entrega: cliente.entrega,
-    fecha: new Date().toISOString(),
-    // Copia de los datos recibidos para mostrar el resultado de esta compra.
-    productos: lineas.map(linea => ({
-      productoId: linea.productoId,
-      nombre: linea.nombre,
-      cantidad: linea.cantidad,
-      precio: linea.precio,
-      subtotal: linea.subtotal
-    })),
-    total: calcularTotal(lineas)
+    items: carrito.map(item => ({ productoId: item.productoId, cantidad: item.cantidad }))
   }
-  return pedido
+}
+
+// Envía la compra a la API y devuelve el pedido guardado (con número, fecha, líneas y total).
+export function confirmarCompra(carrito, cliente, productos, usuarioId = null) {
+  return enviarDatos('/api/pedidos', 'POST', armarPedido(carrito, cliente, productos, usuarioId))
+}
+
+export function obtenerPedido(id) {
+  return obtenerDatos(`/api/pedidos/${id}`)
+}
+
+// Sin usuarioId: todos los pedidos (administración). Con usuarioId: historial de esa persona.
+export function listarPedidos(usuarioId = null) {
+  return obtenerDatos(usuarioId == null ? '/api/pedidos' : `/api/pedidos?usuarioId=${usuarioId}`)
 }
