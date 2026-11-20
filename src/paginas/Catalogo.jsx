@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import ListaProductos from '../componentes/ListaProductos.jsx'
 
-function Catalogo({ productos, onAgregar }) {
+function Catalogo({ productos, cargando, error, onAgregar }) {
   const [busqueda, setBusqueda] = useState('')
   const filtrados = productos.filter(producto =>
     producto.nombre.toLowerCase().includes(busqueda.trim().toLowerCase())
@@ -15,6 +15,8 @@ function Catalogo({ productos, onAgregar }) {
         <input className="form-control" id="buscar-producto" type="search" value={busqueda}
           onChange={evento => setBusqueda(evento.target.value)} />
       </div>
+      {error && <p role="alert">No se pudo cargar el catálogo.</p>}
+      {!error && cargando && <p role="status">Cargando productos…</p>}
       <ListaProductos productos={filtrados} onAgregar={onAgregar} />
     </main>
   )

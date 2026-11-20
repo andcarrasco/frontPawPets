@@ -104,6 +104,17 @@ function Header({ cantidadCarrito = 0, usuario = null, onCerrarSesion }) {
                           Mi perfil
                         </NavLink>
 
+                        <NavLink
+                          className="dropdown-item"
+                          to="/mis-pedidos"
+                          onClick={() => {
+                            setMenuCuentaAbierto(false)
+                            cerrarMenu()
+                          }}
+                        >
+                          Mis compras
+                        </NavLink>
+
                         <button
                           className="dropdown-item"
                           type="button"

@@ -5,6 +5,8 @@ import Checkout from '../paginas/Checkout.jsx'
 import ResultadoCompra from '../paginas/ResultadoCompra.jsx'
 import productos from '../datos/productos.json'
 import { confirmarCompra } from '../servicios/compras.js'
+import { simularApi, errorApi } from './utilidades/simularApi.js'
+import { rutasPedidos } from './utilidades/pedidosSimulados.js'
 
 const usuario = {
   id: 7, nombre: 'Cliente de prueba', email: 'prueba@gmail.com', direccion: 'Calle de prueba 123',
@@ -15,8 +17,8 @@ function CompraPrueba({ confirmar }) {
   const [carrito, setCarrito] = useState([{ productoId: productos[0].id, cantidad: 1 }])
   const [pedido, setPedido] = useState(null)
 
-  function comprar(cliente, usuarioId) {
-    const resumen = confirmar ? confirmar(cliente, usuarioId) : confirmarCompra(carrito, cliente, productos, usuarioId)
+  async function comprar(cliente, usuarioId) {
+    const resumen = confirmar ? confirmar(cliente, usuarioId) : await confirmarCompra(carrito, cliente, productos, usuarioId)
     setPedido(resumen)
     setCarrito([])
     return resumen
@@ -42,7 +44,7 @@ function mostrar(confirmar, estado = null) {
   )
 }
 
-// Revisa los datos del cliente y los resultados del pago simulado.
+// Revisa los datos del cliente y los resultados del pago, con la API de pedidos simulada.
 describe('Checkout', () => {
   afterEach(() => cleanup())
 
@@ -73,18 +75,33 @@ describe('Checkout', () => {
     expect(screen.getByLabelText('Nombre completo').value).toBe('Cliente de prueba')
   })
 
-  // Datos: Un producto en el carrito y datos válidos del cliente.
+  // Datos: Un producto en el carrito, datos válidos y la API de pedidos simulada.
   // Acción: Confirmar el pago exitoso.
-  // Resultado esperado: Se muestra el éxito y el producto en el resumen, el carrito queda vacío y el JSON no cambia.
-  it('muestra el resumen y vacía el carrito al confirmar una compra', () => {
-    const original = JSON.stringify(productos)
+  // Resultado esperado: Se muestra el éxito con el número que asignó la API y el carrito queda vacío.
+  it('muestra el resumen que devuelve la API y vacía el carrito', async () => {
+    simularApi(rutasPedidos([], productos))
     mostrar()
 
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar compra simulada' }))
-    expect(screen.getByRole('heading', { name: 'Compra realizada con éxito' })).toBeTruthy()
+
+    expect(await screen.findByRole('heading', { name: 'Compra realizada con éxito' })).toBeTruthy()
+    expect(screen.getByText('Tu compra simulada número 100 se completó.')).toBeTruthy()
     expect(screen.getByText(productos[0].nombre, { exact: false })).toBeTruthy()
     expect(screen.getByTestId('elementos-carrito').textContent).toBe('0')
-    expect(JSON.stringify(productos)).toBe(original)
+  })
+
+  // Datos: La API responde 409 porque ya no queda stock.
+  // Acción: Confirmar el pago exitoso.
+  // Resultado esperado: Se queda en el checkout con el mensaje del backend y el carrito conserva el producto.
+  it('muestra el error de stock de la API y conserva el carrito', async () => {
+    simularApi({ 'POST /api/pedidos': errorApi(409, 'No hay stock suficiente de Master Dog Adulto 15 kg. Quedan 0 unidades.') })
+    mostrar()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar compra simulada' }))
+
+    expect(await screen.findByText(/No hay stock suficiente/)).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Finalizar compra' })).toBeTruthy()
+    expect(screen.getByTestId('elementos-carrito').textContent).toBe('1')
   })
 
   // Datos: Dirección /compra/exito/1 sin un pedido en memoria.
