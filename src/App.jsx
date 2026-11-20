@@ -1,4 +1,4 @@
-// Catálogo compartido desde la API (con respaldo en JSON) y carrito en memoria mediante estado React.
+// Catálogo compartido desde la API y carrito en memoria mediante estado React.
 import { useState } from 'react'
 import { BrowserRouter, Routes, Route, useLocation, Link } from 'react-router-dom'
 import Header from './componentes/Header.jsx'
@@ -20,8 +20,7 @@ import Carrito from './paginas/Carrito.jsx'
 import Checkout from './paginas/Checkout.jsx'
 import ResultadoCompra from './paginas/ResultadoCompra.jsx'
 import DetallePedido from './paginas/DetallePedido.jsx'
-import productosLocales from './datos/productos.json'
-import categoriasLocales from './datos/categorias.json'
+import MisPedidos from './paginas/MisPedidos.jsx'
 import useDatosApi from './hooks/useDatosApi.js'
 import { agregarAlCarrito, cambiarCantidad, quitarDelCarrito } from './servicios/carrito.js'
 import { confirmarCompra } from './servicios/compras.js'
@@ -44,9 +43,9 @@ export function ContenidoApp() {
   const [ultimoPedido, setUltimoPedido] = useState(null)
   const [pedidos, setPedidos] = useState([])
   const location = useLocation()
-  // Catálogo desde la API; si el backend no responde se usan los JSON locales.
-  const { datos: productos } = useDatosApi('/api/productos', productosLocales)
-  const { datos: categorias } = useDatosApi('/api/categorias', categoriasLocales)
+  // Catálogo desde la API: GET /api/productos y GET /api/categorias.
+  const { datos: productos, cargando, error, recargar: recargarProductos } = useDatosApi('/api/productos')
+  const { datos: categorias, recargar: recargarCategorias } = useDatosApi('/api/categorias')
 
   function agregar(id) {
     const producto = productos.find(producto => producto.id === id)
@@ -60,11 +59,13 @@ export function ContenidoApp() {
     setCarrito(cambiarCantidad(carrito, producto, cantidad))
   }
 
-  function comprar(cliente, usuarioId) {
-    const pedido = confirmarCompra(carrito, cliente, productos, usuarioId)
+  // POST /api/pedidos: el backend guarda el pedido y descuenta el stock.
+  async function comprar(cliente, usuarioId) {
+    const pedido = await confirmarCompra(carrito, cliente, productos, usuarioId)
     setUltimoPedido(pedido)
     setPedidos(actuales => [...actuales, pedido])
     setCarrito([])
+    recargarProductos() // vuelve a pedir el catálogo para ver el stock actualizado
     return pedido
   }
 
@@ -98,11 +99,11 @@ export function ContenidoApp() {
           <Route path="/blog/vacunas" element={<BlogVacunas />} />
           <Route element={<RutaProtegida usuario={usuario} rolPermitido="administrador" />}>
           <Route path="/admin/reportes" element={<AdminReportes productos={productos} pedidos={pedidos} />} />
-          <Route path="/admin/pedidos/:id" element={<DetallePedido pedidos={pedidos} />} />
-          <Route path="/admin/productos" element={<AdminProductos productos={productos} categorias={categorias} />} />
-          <Route path="/admin/categorias" element={<AdminCategorias categorias={categorias} productos={productos} />} />
+          <Route path="/admin/pedidos/:id" element={<DetallePedido />} />
+          <Route path="/admin/productos" element={<AdminProductos productos={productos} categorias={categorias} onCambio={recargarProductos} />} />
+          <Route path="/admin/categorias" element={<AdminCategorias categorias={categorias} productos={productos} onCambio={recargarCategorias} />} />
           </Route>
-          <Route path="/productos" element={<Catalogo productos={productos} onAgregar={agregar} />} />
+          <Route path="/productos" element={<Catalogo productos={productos} cargando={cargando} error={error} onAgregar={agregar} />} />
           <Route path="/productos/:id" element={<DetalleProducto key={location.pathname} productos={productos} onAgregar={agregar} />} />
           <Route path="/categorias" element={<Categorias productos={productos} categorias={categorias} onAgregar={agregar} />} />
           <Route path="/categorias/:id" element={<Categorias productos={productos} categorias={categorias} onAgregar={agregar} />} />
@@ -112,6 +113,7 @@ export function ContenidoApp() {
           <Route path="/checkout" element={<Checkout key={usuario ? usuario.id : 'invitado'} carrito={carrito} productos={productos} onConfirmar={comprar} usuario={usuario} />} />
           <Route path="/compra/exito/:id" element={<ResultadoCompra pedido={ultimoPedido} />} />
           <Route path="/compra/error" element={<ResultadoCompra fallido />} />
+          <Route path="/mis-pedidos" element={<MisPedidos usuario={usuario} />} />
           <Route path="/login" element={<Login onLogin={recibirSesion} />} />
           <Route path="/registro" element={<Registro />} />
           <Route path="/contacto" element={<Contacto />} />

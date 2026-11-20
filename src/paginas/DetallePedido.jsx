@@ -1,16 +1,32 @@
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import ResumenCompra from '../componentes/ResumenCompra.jsx'
+import { obtenerPedido } from '../servicios/compras.js'
 
-function DetallePedido({ pedidos = [] }) {
+// Comprobante de un pedido guardado en la API (GET /api/pedidos/{id}).
+function DetallePedido() {
   const { id } = useParams()
-  const pedido = pedidos.find(pedido => pedido.id === Number(id))
-  if (!pedido) {
+  const [pedido, setPedido] = useState(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    obtenerPedido(id)
+      .then(setPedido)
+      .catch(err => setError(err.message))
+  }, [id])
+
+  if (error) {
     return (
       <main className="container py-5">
         <h1>Pedido no disponible</h1>
-        <p>No se encontró la compra solicitada en el historial de esta sesión.</p>
+        <p>{error}</p>
+        <Link to="/admin/reportes">Volver a reportes</Link>
       </main>
     )
+  }
+
+  if (!pedido) {
+    return <main className="container py-5"><p>Cargando pedido...</p></main>
   }
 
   return (
