@@ -5,7 +5,8 @@ function FormularioUsuario({ usuarioInicial = null, onGuardar, onCancelar }) {
   const [formulario, setFormulario] = useState({
     nombre: usuarioInicial?.nombre || '',
     email: usuarioInicial?.email || '',
-    password: usuarioInicial?.password || '',
+    // La API nunca devuelve la contraseña: al editar parte vacía y solo se cambia si se escribe una nueva.
+    password: '',
     rut: usuarioInicial?.rut || '',
     region: usuarioInicial?.region || '',
     comuna: usuarioInicial?.comuna || '',
@@ -14,6 +15,7 @@ function FormularioUsuario({ usuarioInicial = null, onGuardar, onCancelar }) {
   }) // fin estado formulario
 
   const [error, setError] = useState('') // fin estado error
+  const [guardando, setGuardando] = useState(false) // fin estado guardando
 
   function cambiarCampo(evento) {
     const { name, value } = evento.target
@@ -24,14 +26,20 @@ function FormularioUsuario({ usuarioInicial = null, onGuardar, onCancelar }) {
     }))
   } // fin cambiarCampo
 
-  function guardar(evento) {
+  async function guardar(evento) {
     evento.preventDefault()
     setError('')
+    setGuardando(true)
+
+    const datos = { ...formulario }
+    if (usuarioInicial && !datos.password) delete datos.password
 
     try {
-      onGuardar(formulario)
+      await onGuardar(datos)
     } catch (err) {
+      // Mensaje de la API: correo repetido (409), datos inválidos (400), etc.
       setError(err.message)
+      setGuardando(false)
     } // fin try catch
   } // fin guardar
 
@@ -42,7 +50,7 @@ function FormularioUsuario({ usuarioInicial = null, onGuardar, onCancelar }) {
       </h2>
 
       {error && (
-        <div className="alert alert-danger">{error}</div>
+        <div className="alert alert-danger" role="alert">{error}</div>
       )}
 
       <div className="row g-3">
@@ -83,7 +91,8 @@ function FormularioUsuario({ usuarioInicial = null, onGuardar, onCancelar }) {
             className="form-control"
             value={formulario.password}
             onChange={cambiarCampo}
-            required
+            placeholder={usuarioInicial ? 'Deja vacío para mantener la actual' : ''}
+            required={!usuarioInicial}
           />
         </div>
         {/* fin campo password */}
@@ -173,7 +182,7 @@ function FormularioUsuario({ usuarioInicial = null, onGuardar, onCancelar }) {
       {/* fin row */}
 
       <div className="d-flex gap-2 mt-4">
-        <button className="btn btn-success" type="submit">
+        <button className="btn btn-success" type="submit" disabled={guardando}>
           Guardar usuario
         </button>
         <button

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { buscarUsuarioPorEmail } from '../servicios/usuarios.js'
+import { ingresar } from '../servicios/usuarios.js'
 import { iniciarSesion, destinoRol } from '../servicios/sesion.js'
 
 function Login({ onLogin }) {
@@ -12,6 +12,7 @@ function Login({ onLogin }) {
 
   const [errores, setErrores] = useState({}) // fin estado errores
   const [error, setError] = useState('') // fin estado error general
+  const [enviando, setEnviando] = useState(false) // fin estado enviando
   const navigate = useNavigate() // fin navigate
 
   function cambiarCampo(evento) {
@@ -47,36 +48,34 @@ function Login({ onLogin }) {
     return nuevosErrores
   } // fin validar
 
-  function handleSubmit(evento) {
+  async function handleSubmit(evento) {
     evento.preventDefault()
     setError('')
     const erroresEncontrados = validar()
+    setErrores(erroresEncontrados)
 
     if (Object.keys(erroresEncontrados).length > 0) {
-      setErrores(erroresEncontrados)
       return
     } // fin if errores
 
-    const usuario = buscarUsuarioPorEmail(formulario.email)
+    setEnviando(true)
+    try {
+      // El backend revisa correo y contraseña; si no coinciden responde 401 con su mensaje.
+      const usuario = await ingresar(formulario.email, formulario.password)
 
-    if (!usuario) {
-      setError('El correo no está registrado.')
-      return
-    } // fin if usuario no existe
+      if (usuario.rol !== formulario.rol) {
+        setError('El rol seleccionado no corresponde a este usuario.')
+        setEnviando(false)
+        return
+      } // fin if rol incorrecto
 
-    if (usuario.password !== formulario.password) {
-      setError('La contraseña es incorrecta.')
-      return
-    } // fin if password incorrecta
-
-    if (usuario.rol !== formulario.rol) {
-      setError('El rol seleccionado no corresponde a este usuario.')
-      return
-    } // fin if rol incorrecto
-
-    const sesion = iniciarSesion(usuario)
-    onLogin(sesion)
-    navigate(destinoRol(usuario.rol))
+      const sesion = iniciarSesion(usuario)
+      onLogin(sesion)
+      navigate(destinoRol(usuario.rol))
+    } catch (err) {
+      setError(err.message)
+      setEnviando(false)
+    } // fin try catch
   } // fin handleSubmit
 
   return (
@@ -87,7 +86,7 @@ function Login({ onLogin }) {
           <h1 className="mb-4">Ingresar a PawPets</h1>
 
           {error && (
-            <div className="alert alert-danger">{error}</div>
+            <div className="alert alert-danger" role="alert">{error}</div>
           )}
 
           <form onSubmit={handleSubmit} noValidate>
@@ -145,7 +144,7 @@ function Login({ onLogin }) {
             </div>
             {/* fin campo password */}
 
-            <button type="submit" className="btn btn-success w-100">
+            <button type="submit" className="btn btn-success w-100" disabled={enviando}>
               Ingresar
             </button>
 

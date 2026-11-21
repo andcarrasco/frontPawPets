@@ -17,6 +17,8 @@ function Registro() {
 
   const [errores, setErrores] = useState({}) // fin estado errores
   const [mensaje, setMensaje] = useState('') // fin estado mensaje
+  const [error, setError] = useState('') // fin estado error general
+  const [enviando, setEnviando] = useState(false) // fin estado enviando
 
   function cambiarCampo(evento) {
     const { name, value } = evento.target
@@ -77,8 +79,10 @@ function Registro() {
     return nuevosErrores
   } // fin validar
 
-  function handleSubmit(evento) {
+  async function handleSubmit(evento) {
     evento.preventDefault()
+    setError('')
+    setMensaje('')
     const erroresEncontrados = validar()
 
     if (Object.keys(erroresEncontrados).length > 0) {
@@ -86,8 +90,10 @@ function Registro() {
       return
     } // fin if errores
 
+    setEnviando(true)
     try {
-      crearUsuario({
+      // El backend guarda el usuario en MongoDB; si el correo ya existe responde 409.
+      await crearUsuario({
         nombre: formulario.nombre,
         email: formulario.email,
         password: formulario.password,
@@ -104,8 +110,13 @@ function Registro() {
         confirmarPassword: '', rut: '', region: '', comuna: '', direccion: ''
       })
     } catch (err) {
-      setErrores({ email: err.message })
+      if (err.estado === 409) {
+        setErrores({ email: err.message })
+      } else {
+        setError(err.message)
+      } // fin if correo repetido
     } // fin try catch
+    setEnviando(false)
 
   } // fin handleSubmit
 
@@ -117,7 +128,11 @@ function Registro() {
           <h1 className="mb-4">Crear cuenta en PawPets</h1>
 
           {mensaje && (
-            <div className="alert alert-success">{mensaje}</div>
+            <div className="alert alert-success" role="status">{mensaje}</div>
+          )}
+
+          {error && (
+            <div className="alert alert-danger" role="alert">{error}</div>
           )}
 
           <form onSubmit={handleSubmit} noValidate>
@@ -259,7 +274,7 @@ function Registro() {
             </div>
             {/* fin campos region y comuna */}
 
-            <button type="submit" className="btn btn-success w-100">
+            <button type="submit" className="btn btn-success w-100" disabled={enviando}>
               Crear cuenta
             </button>
 

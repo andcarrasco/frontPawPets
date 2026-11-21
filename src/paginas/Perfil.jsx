@@ -1,24 +1,25 @@
 import { useState } from 'react'
 import { obtenerSesion } from '../servicios/sesion.js'
 import { regionesCompra as REGIONES } from '../datos/regionesCompra.js'
-import { buscarUsuario, actualizarUsuario } from '../servicios/usuarios.js'
+import { actualizarUsuario } from '../servicios/usuarios.js'
 import { useNavigate } from 'react-router-dom'
 
 function Perfil({ onActualizarUsuario, onCerrarSesion }) {
   const sesion = obtenerSesion()
   const navigate = useNavigate()
-  const usuarioActual = sesion ? buscarUsuario(sesion.id) : null
 
+  // La sesión ya guarda nombre, correo y dirección, así que el formulario parte con esos datos.
   const [formulario, setFormulario] = useState({
-    nombre: usuarioActual?.nombre || '',
-    email: usuarioActual?.email || '',
-    region: usuarioActual?.region || '',
-    comuna: usuarioActual?.comuna || '',
-    direccion: usuarioActual?.direccion || ''
+    nombre: sesion?.nombre || '',
+    email: sesion?.email || '',
+    region: sesion?.region || '',
+    comuna: sesion?.comuna || '',
+    direccion: sesion?.direccion || ''
   }) // fin estado formulario
 
   const [mensaje, setMensaje] = useState('') // fin estado mensaje
   const [error, setError] = useState('') // fin estado error
+  const [guardando, setGuardando] = useState(false) // fin estado guardando
 
   function cambiarCampo(evento) {
     const { name, value } = evento.target
@@ -29,18 +30,21 @@ function Perfil({ onActualizarUsuario, onCerrarSesion }) {
     }))
   } // fin cambiarCampo
 
-  function handleSubmit(evento) {
+  async function handleSubmit(evento) {
     evento.preventDefault()
     setError('')
     setMensaje('')
+    setGuardando(true)
 
     try {
-      const actualizado = actualizarUsuario(sesion.id, formulario)
+      // PUT /api/usuarios/{id}: el backend mantiene el RUT, el rol y la contraseña.
+      const actualizado = await actualizarUsuario(sesion.id, formulario)
       onActualizarUsuario(actualizado)
       setMensaje('Perfil actualizado correctamente.')
     } catch (err) {
       setError(err.message)
     } // fin try catch
+    setGuardando(false)
   } // fin handleSubmit
 
   function handleCerrarSesion() {
@@ -163,7 +167,7 @@ function Perfil({ onActualizarUsuario, onCerrarSesion }) {
             </div>
             {/* fin campos region y comuna */}
 
-            <button type="submit" className="btn btn-success w-100">
+            <button type="submit" className="btn btn-success w-100" disabled={guardando}>
               Guardar cambios
             </button>
 

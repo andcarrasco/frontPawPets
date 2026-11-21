@@ -5,8 +5,9 @@ import { crearUsuario } from '../servicios/usuarios.js'
 function NuevoUsuario() {
   const navigate = useNavigate()
 
-  function guardar(datos) {
-    crearUsuario(datos)
+  // Si la API responde con error, FormularioUsuario muestra el mensaje.
+  async function guardar(datos) {
+    await crearUsuario(datos)
     navigate('/admin/usuarios')
   } // fin guardar
 
