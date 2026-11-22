@@ -1,19 +1,6 @@
 /* global spyOn */
-// Patrón común para probar componentes que llaman a la API sin levantar el backend.
-// Reemplaza window.fetch (con spyOn de Jasmine) por respuestas preparadas en cada prueba.
-//
-// Uso:
-//   const api = simularApi({
-//     'GET /api/productos': [{ id: 1, nombre: 'Pelota' }],             // responde 200 con ese JSON
-//     'POST /api/usuarios': ({ cuerpo }) => ({ id: 9, ...cuerpo }),    // función: arma la respuesta
-//     'POST /api/auth/login': errorApi(401, 'Correo o contraseña incorrectos.'),
-//     'GET /api/pedidos/:id': ({ parametros }) => pedidos[parametros.id]  // ruta con comodín
-//   })
-//   ...
-//   expect(api.llamadas[0].cuerpo.email).toBe('cliente@gmail.com')
-//
+// Reemplaza fetch por respuestas preparadas para probar sin levantar el backend.
 // Las rutas que no estén en la lista responden 404.
-// Jasmine restaura el fetch original al terminar cada prueba.
 
 // Respuesta con un código de estado distinto de 200.
 export function responder(estado, datos = null) {
