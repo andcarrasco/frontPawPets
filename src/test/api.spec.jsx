@@ -1,4 +1,4 @@
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { ContenidoApp } from '../App.jsx'
 import { obtenerDatos, enviarDatos } from '../servicios/api.js'
@@ -39,8 +39,15 @@ describe('Conexión con la API', () => {
   it('lanza el mensaje de error que devuelve el backend', async () => {
     simularApi({ 'POST /api/usuarios': errorApi(409, 'Ya existe un usuario con ese correo.') })
 
-    await expectAsync(enviarDatos('/api/usuarios', 'POST', { email: 'repetido@gmail.com' }))
-      .toBeRejectedWithError('Ya existe un usuario con ese correo.')
+    let error = null
+    try {
+      await enviarDatos('/api/usuarios', 'POST', { email: 'repetido@gmail.com' })
+    } catch (e) {
+      error = e
+    }
+
+    expect(error.message).toBe('Ya existe un usuario con ese correo.')
+    expect(error.estado).toBe(409)
   })
 
   // Datos: La API entrega un producto llamado Producto desde la API.
@@ -63,8 +70,7 @@ describe('Conexión con la API', () => {
     const api = simularApi({})
     render(<MemoryRouter initialEntries={['/productos']}><ContenidoApp /></MemoryRouter>)
 
-    await new Promise(resolver => setTimeout(resolver, 0))
-    expect(api.espia).toHaveBeenCalled()
-    expect(screen.getByRole('heading', { name: productosLocales[0].nombre })).toBeTruthy()
+    await waitFor(() => expect(api.llamadas.some(l => l.ruta === '/api/productos')).toBeTrue())
+    expect(await screen.findByRole('heading', { name: productosLocales[0].nombre })).toBeTruthy()
   })
 })
