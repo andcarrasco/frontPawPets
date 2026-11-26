@@ -39,8 +39,15 @@ describe('Conexión con la API', () => {
   it('lanza el mensaje de error que devuelve el backend', async () => {
     simularApi({ 'POST /api/usuarios': errorApi(409, 'Ya existe un usuario con ese correo.') })
 
-    await expectAsync(enviarDatos('/api/usuarios', 'POST', { email: 'repetido@gmail.com' }))
-      .toBeRejectedWithError('Ya existe un usuario con ese correo.')
+    let error = null
+    try {
+      await enviarDatos('/api/usuarios', 'POST', { email: 'repetido@gmail.com' })
+    } catch (e) {
+      error = e
+    }
+
+    expect(error.message).toBe('Ya existe un usuario con ese correo.')
+    expect(error.estado).toBe(409)
   })
 
   // Datos: La API entrega un producto llamado Producto desde la API.

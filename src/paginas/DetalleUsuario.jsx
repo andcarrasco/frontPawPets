@@ -1,18 +1,31 @@
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { buscarUsuario } from '../servicios/usuarios.js'
 
 function DetalleUsuario() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const usuario = buscarUsuario(id)
+  const [usuario, setUsuario] = useState(null)
+  const [error, setError] = useState('')
 
-  if (!usuario) {
+  // GET /api/usuarios/{id}. Si no existe, la API responde 404 con su mensaje.
+  useEffect(() => {
+    buscarUsuario(id)
+      .then(setUsuario)
+      .catch(err => setError(err.message))
+  }, [id])
+
+  if (error) {
     return (
       <main className="container py-5">
-        <div className="alert alert-danger">Usuario no encontrado.</div>
+        <div className="alert alert-danger">{error}</div>
       </main>
     )
-  } // fin if no usuario
+  } // fin if error
+
+  if (!usuario) {
+    return <main className="container py-5"><p>Cargando usuario...</p></main>
+  } // fin if cargando
 
   return (
     <main className="container py-5">
@@ -54,7 +67,7 @@ function DetalleUsuario() {
 
           <div className="col-md-6">
             <p className="text-muted mb-1">RUT</p>
-            <p className="fw-bold">{usuario.rut}</p>
+            <p className="fw-bold">{usuario.rut || '—'}</p>
           </div>
 
           <div className="col-md-6">
