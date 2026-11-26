@@ -1,13 +1,22 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { listarUsuarios, eliminarUsuario } from '../servicios/usuarios.js'
 import { useNavigate } from 'react-router-dom'
 
 function AdminUsuarios() {
-  const [usuarios, setUsuarios] = useState(() => listarUsuarios())
+  const [usuarios, setUsuarios] = useState([])
+  const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const navigate = useNavigate()
 
-  function confirmarEliminacion(usuario) {
+  // Pide la lista a la API (GET /api/usuarios) al abrir la página.
+  useEffect(() => {
+    listarUsuarios()
+      .then(setUsuarios)
+      .catch(err => setError(err.message))
+      .finally(() => setCargando(false))
+  }, [])
+
+  async function confirmarEliminacion(usuario) {
     setError('')
     const confirmado = window.confirm(
       '¿Estás seguro de eliminar al usuario "' + usuario.nombre + '"?'
@@ -16,8 +25,8 @@ function AdminUsuarios() {
     if (!confirmado) return
 
     try {
-      eliminarUsuario(usuario.id)
-      setUsuarios(listarUsuarios())
+      await eliminarUsuario(usuario.id)
+      setUsuarios(await listarUsuarios())
     } catch (err) {
       setError(err.message)
     } // fin try catch
@@ -36,8 +45,10 @@ function AdminUsuarios() {
       </div>
 
       {error && (
-        <div className="alert alert-danger">{error}</div>
+        <div className="alert alert-danger" role="alert">{error}</div>
       )}
+
+      {cargando && <p>Cargando usuarios...</p>}
 
       <div className="table-responsive">
         <table className="table table-striped table-bordered align-middle">
@@ -74,6 +85,7 @@ function AdminUsuarios() {
                   </button>
                   <button
                     className="btn btn-outline-danger btn-sm ms-2"
+                    aria-label={'Eliminar ' + usuario.nombre}
                     onClick={() => confirmarEliminacion(usuario)}
                   >
                     Eliminar

@@ -1,30 +1,36 @@
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Link } from 'react-router-dom'
 import { ContenidoApp } from '../App.jsx'
-import { crearUsuario, eliminarUsuario, actualizarUsuario } from '../servicios/usuarios.js'
 import { iniciarSesion, obtenerSesion } from '../servicios/sesion.js'
+import { simularApi } from './utilidades/simularApi.js'
+import { rutasUsuarios } from './utilidades/usuariosSimulados.js'
 
 // Recorre la aplicación para comprobar que sesión, perfil y compra usan los mismos datos.
+// Los usuarios vienen de la API simulada (rutasUsuarios); el catálogo usa el JSON local.
 describe('Compra con usuario y sesión', () => {
   let cliente
   let segundoUsuario
+  let administrador
 
   beforeEach(() => {
     sessionStorage.removeItem('pawpets_sesion')
-    cliente = crearUsuario({
-      nombre: 'Cliente de prueba', email: 'integracion@gmail.com', password: '1234', rut: '19011022K',
+    administrador = {
+      id: 1, nombre: 'Administrador Demo', email: 'administrador@duoc.cl', password: '1234', rut: '19011022K',
+      direccion: 'Av. Providencia 1234', region: 'Metropolitana', comuna: 'Santiago', rol: 'administrador'
+    }
+    cliente = {
+      id: 10, nombre: 'Cliente de prueba', email: 'integracion@gmail.com', password: '1234', rut: '19011022K',
       direccion: 'Calle Uno 123', region: 'Biobío', comuna: 'Concepción', rol: 'cliente'
-    })
-    segundoUsuario = crearUsuario({
-      nombre: 'Otra persona', email: 'otra.persona@gmail.com', password: '1234', rut: '19011022K',
+    }
+    segundoUsuario = {
+      id: 11, nombre: 'Otra persona', email: 'otra.persona@gmail.com', password: '1234', rut: '19011022K',
       direccion: 'Calle Dos 456', region: 'Valparaíso', comuna: 'Villa Alemana', rol: 'vendedor'
-    })
+    }
+    simularApi(rutasUsuarios([administrador, cliente, segundoUsuario]))
   })
 
   afterEach(() => {
     cleanup()
-    eliminarUsuario(cliente.id)
-    eliminarUsuario(segundoUsuario.id)
     sessionStorage.removeItem('pawpets_sesion')
   })
 
@@ -50,19 +56,21 @@ describe('Compra con usuario y sesión', () => {
     fireEvent.click(screen.getByRole('link', { name: 'Continuar compra' }))
   }
 
-  function ingresar(usuario) {
+  // El login ahora espera la respuesta de la API: termina cuando aparece el menú de la cuenta.
+  async function ingresar(usuario) {
     fireEvent.change(screen.getByLabelText('Rol'), { target: { value: usuario.rol } })
     fireEvent.change(screen.getByLabelText('Correo electrónico'), { target: { value: usuario.email } })
     fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: '1234' } })
     fireEvent.click(screen.getByRole('button', { name: 'Ingresar' }))
+    await screen.findByRole('button', { name: /👤/ })
   }
 
   // Datos: Cliente de prueba con contraseña 1234, dirección Calle Uno 123 y comuna Concepción, Biobío.
   // Acción: Iniciar sesión, agregar un producto y confirmar la compra.
   // Resultado esperado: El checkout carga los datos del cliente, la compra tiene éxito con esa dirección y el carrito queda vacío.
-  it('carga los datos del cliente después del login y completa su compra', () => {
+  it('carga los datos del cliente después del login y completa su compra', async () => {
     mostrar('/login')
-    ingresar(cliente)
+    await ingresar(cliente)
     iniciarCompra()
 
     expect(screen.getByLabelText('Nombre completo').value).toBe(cliente.nombre)
@@ -79,7 +87,7 @@ describe('Compra con usuario y sesión', () => {
   // Datos: Cliente con sesión iniciada en su perfil.
   // Acción: Cambiar nombre, correo y región; elegir La Florida, guardar y abrir el checkout.
   // Resultado esperado: Cambiar región limpia la comuna; el nombre se actualiza en sesión y los datos guardados llegan al checkout.
-  it('usa el nombre y la comuna editados en el perfil al abrir el checkout', () => {
+  it('usa el nombre y la comuna editados en el perfil al abrir el checkout', async () => {
     mostrar('/perfil', cliente)
     fireEvent.change(screen.getByLabelText('Nombre completo'), { target: { value: 'Nombre actualizado' } })
     fireEvent.change(screen.getByLabelText('Correo'), { target: { value: 'actualizado@gmail.com' } })
@@ -87,6 +95,7 @@ describe('Compra con usuario y sesión', () => {
     expect(screen.getByLabelText('Comuna').value).toBe('')
     fireEvent.change(screen.getByLabelText('Comuna'), { target: { value: 'La Florida' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    await screen.findByText('Perfil actualizado correctamente.')
     iniciarCompra()
 
     expect(obtenerSesion().nombre).toBe('Nombre actualizado')
@@ -136,14 +145,14 @@ describe('Compra con usuario y sesión', () => {
   // Datos: Carrito de un cliente después de un pago fallido y una segunda cuenta de vendedor.
   // Acción: Cerrar la primera sesión, ingresar con la segunda cuenta y continuar la compra.
   // Resultado esperado: El checkout muestra Otra persona, Calle Dos 456 y Villa Alemana.
-  it('carga la nueva cuenta al volver a comprar después de un pago fallido', () => {
+  it('carga la nueva cuenta al volver a comprar después de un pago fallido', async () => {
     mostrar('/productos', cliente)
     iniciarCompra()
     fireEvent.change(screen.getByLabelText('Resultado del pago de demostración'), { target: { value: 'fallido' } })
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar compra simulada' }))
     verPerfil()
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }))
-    ingresar(segundoUsuario)
+    await ingresar(segundoUsuario)
     continuarCompra()
 
     expect(screen.getByLabelText('Nombre completo').value).toBe(segundoUsuario.nombre)
@@ -178,11 +187,12 @@ describe('Compra con usuario y sesión', () => {
   // Datos: Usuario de prueba con rol administrador y sesión iniciada.
   // Acción: Editar su nombre a Nombre editado, guardar y abrir el checkout.
   // Resultado esperado: Tanto la sesión como el nombre del checkout muestran Nombre editado.
-  it('actualiza la sesión al editar sus datos desde administración', () => {
-    const administrador = actualizarUsuario(cliente.id, { rol: 'administrador' })
-    mostrar('/admin/usuarios/' + administrador.id, administrador)
-    fireEvent.change(screen.getByLabelText('Nombre completo'), { target: { value: 'Nombre editado' } })
+  it('actualiza la sesión al editar sus datos desde administración', async () => {
+    cliente.rol = 'administrador'
+    mostrar('/admin/usuarios/' + cliente.id, cliente)
+    fireEvent.change(await screen.findByLabelText('Nombre completo'), { target: { value: 'Nombre editado' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar usuario' }))
+    await screen.findByRole('heading', { name: 'Administración de usuarios' })
     iniciarCompra()
 
     expect(obtenerSesion().nombre).toBe('Nombre editado')
@@ -192,13 +202,13 @@ describe('Compra con usuario y sesión', () => {
   // Datos: Cliente con una compra de un producto de $25.000.
   // Acción: Cerrar sesión, ingresar como administrador, abrir Reportes y pulsar Ver detalle.
   // Resultado esperado: El reporte muestra al cliente y el comprobante abre el pedido con total de $25.000.
-  it('incluye la compra en reportes y abre su comprobante por ID', () => {
+  it('incluye la compra en reportes y abre su comprobante por ID', async () => {
     mostrar('/productos', cliente)
     iniciarCompra()
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar compra simulada' }))
     verPerfil()
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }))
-    ingresar({ email: 'administrador@duoc.cl', rol: 'administrador' })
+    await ingresar(administrador)
     fireEvent.click(screen.getByRole('link', { name: 'Reportes' }))
     expect(screen.getByText('Cliente de prueba')).toBeTruthy()
     fireEvent.click(screen.getByRole('link', { name: 'Ver detalle' }))

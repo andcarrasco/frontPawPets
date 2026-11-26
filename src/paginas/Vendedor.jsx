@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { obtenerSesion } from '../servicios/sesion.js'
 import { listarUsuarios } from '../servicios/usuarios.js'
 import { Navigate, useNavigate } from 'react-router-dom'
@@ -5,7 +6,15 @@ import { Navigate, useNavigate } from 'react-router-dom'
 function Vendedor({ productos, onCerrarSesion }) {
   const sesion = obtenerSesion()
   const navigate = useNavigate()
-  const clientes = listarUsuarios().filter(u => u.rol === 'cliente')
+  const [clientes, setClientes] = useState([])
+  const [errorClientes, setErrorClientes] = useState('')
+
+  // Los clientes se piden a la API al abrir el panel.
+  useEffect(() => {
+    listarUsuarios()
+      .then(usuarios => setClientes(usuarios.filter(u => u.rol === 'cliente')))
+      .catch(err => setErrorClientes(err.message))
+  }, [])
 
   if (!sesion) {
     return <Navigate to="/login" replace />
@@ -73,6 +82,7 @@ function Vendedor({ productos, onCerrarSesion }) {
           <div className="card p-4">
             <h3>Mis clientes</h3>
             <p className="text-muted">Listado de clientes registrados.</p>
+            {errorClientes && <div className="alert alert-warning">{errorClientes}</div>}
             <div className="table-responsive">
               <table className="table table-striped table-bordered align-middle">
                 <thead className="table-success">
