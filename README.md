@@ -1,7 +1,7 @@
 # PawPets
 
 Tienda de productos para mascotas hecha con React y Vite para la asignatura Desarrollo Full Stack II (DSY1104) de Duoc UC.
-En la Evaluación 3 el frontend deja de usar datos fijos y pide el catálogo, los usuarios y los pedidos a la API de
+En la Evaluación 3 el frontend deja de usar datos fijos y pide el catálogo, los usuarios, los pedidos y los reportes a la API de
 [backPawPets](https://github.com/andcarrasco/backPawPets), que trabaja con Spring Boot y MongoDB Atlas.
 
 Sitio publicado: https://caso3pawpetsfinal-production.up.railway.app
@@ -55,7 +55,7 @@ compilar, si cambia hay que volver a desplegar el frontend.
 
 - `src/App.jsx`: rutas de la aplicación y carga del catálogo.
 - `src/hooks/useDatosApi.js`: pide datos a la API y entrega la carga y el error a las páginas.
-- `src/servicios/`: llamadas a la API (`api.js`, `usuarios.js`, `compras.js`), sesión, carrito y stock.
+- `src/servicios/`: llamadas a la API (`api.js`, `usuarios.js`, `compras.js`, `reportes.js`), sesión, carrito y stock.
 - `src/componentes/`: Header, Footer, tarjetas de producto, formulario de usuario y `RutaProtegida`.
 - `src/paginas/`: tienda, carrito, checkout, login, registro, perfil, panel de vendedor y administración.
 - `src/test/`: pruebas con Jasmine. Cada caso indica antes del `it` los datos, la acción y el resultado esperado.
@@ -63,8 +63,8 @@ compilar, si cambia hay que volver a desplegar el frontend.
 ## Usuarios y roles
 
 Hay tres roles: cliente, vendedor y administrador. El cliente compra en la tienda, el vendedor revisa productos y
-pedidos, y el administrador además gestiona productos, categorías y usuarios. La sesión se guarda en
-`sessionStorage` y `RutaProtegida` no deja entrar a páginas que no corresponden al rol.
+pedidos, y el administrador además gestiona productos, categorías y usuarios y revisa los reportes de ventas
+del mes, que se calculan en el backend. La sesión se guarda en `sessionStorage` y `RutaProtegida` no deja entrar a páginas que no corresponden al rol.
 
 El login revisa el correo y la clave contra la API, pero no usa tokens. El pago es una simulación: se puede elegir si
 sale exitoso o fallido para probar los dos casos.
