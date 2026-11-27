@@ -41,7 +41,6 @@ export function ContenidoApp() {
   const [usuario, setUsuario] = useState(() => obtenerSesion())
   const [carrito, setCarrito] = useState([])
   const [ultimoPedido, setUltimoPedido] = useState(null)
-  const [pedidos, setPedidos] = useState([])
   const location = useLocation()
   // Catálogo desde la API: GET /api/productos y GET /api/categorias.
   const { datos: productos, cargando, error, recargar: recargarProductos } = useDatosApi('/api/productos')
@@ -63,7 +62,6 @@ export function ContenidoApp() {
   async function comprar(cliente, usuarioId) {
     const pedido = await confirmarCompra(carrito, cliente, productos, usuarioId)
     setUltimoPedido(pedido)
-    setPedidos(actuales => [...actuales, pedido])
     setCarrito([])
     recargarProductos() // vuelve a pedir el catálogo para ver el stock actualizado
     return pedido
@@ -98,7 +96,7 @@ export function ContenidoApp() {
           <Route path="/blog/calor" element={<BlogCalor />} />
           <Route path="/blog/vacunas" element={<BlogVacunas />} />
           <Route element={<RutaProtegida usuario={usuario} rolPermitido="administrador" />}>
-          <Route path="/admin/reportes" element={<AdminReportes productos={productos} pedidos={pedidos} />} />
+          <Route path="/admin/reportes" element={<AdminReportes productos={productos} />} />
           <Route path="/admin/pedidos/:id" element={<DetallePedido />} />
           <Route path="/admin/productos" element={<AdminProductos productos={productos} categorias={categorias} onCambio={recargarProductos} />} />
           <Route path="/admin/categorias" element={<AdminCategorias categorias={categorias} productos={productos} onCambio={recargarCategorias} />} />
