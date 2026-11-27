@@ -1,4 +1,4 @@
-import { render, screen, cleanup, waitFor } from '@testing-library/react'
+import { render, screen, cleanup } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { ContenidoApp } from '../App.jsx'
 import { obtenerDatos, enviarDatos } from '../servicios/api.js'
@@ -52,7 +52,7 @@ describe('Conexión con la API', () => {
 
   // Datos: La API entrega un producto llamado Producto desde la API.
   // Acción: Abrir el catálogo de la tienda.
-  // Resultado esperado: La tarjeta del producto de la API reemplaza a las del JSON local.
+  // Resultado esperado: Se muestra la tarjeta del producto que entrega la API y no otras.
   it('muestra en el catálogo los productos que entrega la API', async () => {
     simularApi({
       'GET /api/productos': [{ ...productosLocales[0], id: 50, nombre: 'Producto desde la API' }]
@@ -65,12 +65,14 @@ describe('Conexión con la API', () => {
 
   // Datos: La API no tiene la ruta de productos (responde 404).
   // Acción: Abrir el catálogo de la tienda.
-  // Resultado esperado: Se siguen mostrando los productos del JSON local.
-  it('usa el JSON local si la API no responde', async () => {
+  // Resultado esperado: Se muestra No se pudo cargar el catálogo y no aparece ningún producto.
+  it('avisa cuando la API no entrega el catálogo', async () => {
     const api = simularApi({})
     render(<MemoryRouter initialEntries={['/productos']}><ContenidoApp /></MemoryRouter>)
 
-    await waitFor(() => expect(api.llamadas.some(l => l.ruta === '/api/productos')).toBeTrue())
-    expect(await screen.findByRole('heading', { name: productosLocales[0].nombre })).toBeTruthy()
+    expect(await screen.findByRole('alert')).toBeTruthy()
+    expect(screen.getByText('No se pudo cargar el catálogo.')).toBeTruthy()
+    expect(api.espia).toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Agregar al carrito' })).toBeNull()
   })
 })

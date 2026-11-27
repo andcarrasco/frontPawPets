@@ -35,7 +35,7 @@ function Checkout({ carrito, productos, onConfirmar, usuario = null }) {
     }))
   }
 
-  function pagar(evento) {
+  async function pagar(evento) {
     evento.preventDefault()
     setError('')
     if (procesando) return
@@ -51,7 +51,8 @@ function Checkout({ carrito, productos, onConfirmar, usuario = null }) {
         navigate('/compra/error', { state: { cliente, usuarioId } })
         return
       }
-      const pedido = onConfirmar(cliente, usuarioId)
+      // Espera la respuesta de la API (por ejemplo, 409 si otro cliente compró el último producto).
+      const pedido = await onConfirmar(cliente, usuarioId)
       navigate('/compra/exito/' + pedido.id)
     } catch (error) {
       setError(error.message)

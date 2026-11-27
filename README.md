@@ -1,159 +1,80 @@
-# PawPets 🐾
+# PawPets
 
-**Proyecto de Desarrollo Full Stack II (DSY1104) · Evaluación 3**
+Tienda de productos para mascotas hecha con React y Vite para la asignatura Desarrollo Full Stack II (DSY1104) de Duoc UC.
+En la Evaluación 3 el frontend deja de usar datos fijos y pide el catálogo, los usuarios y los pedidos a la API de
+[backPawPets](https://github.com/andcarrasco/backPawPets), que trabaja con Spring Boot y MongoDB Atlas.
 
-PawPets es una tienda de productos para mascotas. La Evaluación 3 lleva el frontend React de la Evaluación 2 a una aplicación fullstack: React pide los datos a una API REST en Spring Boot, la API los guarda en una base de datos y todo se publica en internet con Railway.
-
-> **Sitio publicado:** https://caso3pawpetsfinal-production.up.railway.app
->
-> **Estado actual:** el frontend está publicado en Railway y ya pide el catálogo a la API (`/api/productos` y `/api/categorias`). Mientras el backend no responda, usa los JSON de `src/datos` como respaldo. El backend se desarrolla en [andcarrasco/backPawPets](https://github.com/andcarrasco/backPawPets); ver [Checklist de la Evaluación 3](#checklist-de-la-evaluación-3).
+Sitio publicado: https://caso3pawpetsfinal-production.up.railway.app
 
 ## Integrantes
 
-| Integrante | GitHub |
-| --- | --- |
-| María Pía Sepúlveda | [@Piita3569](https://github.com/Piita3569) |
-| Andrés Carrasco | [@andcarrasco](https://github.com/andcarrasco) |
-| Luis Veas | [@luchovduoc](https://github.com/luchovduoc) |
-| Pablo Rojas | [@pablorojas1983](https://github.com/pablorojas1983) |
+- María Pía Sepúlveda ([Piita3569](https://github.com/Piita3569))
+- Andrés Carrasco ([andcarrasco](https://github.com/andcarrasco))
+- Luis Veas ([luchovduoc](https://github.com/luchovduoc))
+- Pablo Rojas ([pablorojas1983](https://github.com/pablorojas1983))
 
-El reparto de tareas de la Evaluación 3 está por definir.
+## Desarrollo
 
-## Arquitectura
+Necesitas Node.js y npm. Primero inicia la API en una terminal siguiendo las instrucciones de
+[backPawPets](https://github.com/andcarrasco/backPawPets). En otra terminal, clona este repositorio e inicia Vite.
 
-```
-Navegador ──► Frontend React (Railway) ──HTTP/JSON──► API REST Spring Boot (Railway) ──► MongoDB Atlas
-```
-
-| Parte | Tecnología | Estado |
-| --- | --- | --- |
-| Frontend | React 19, Vite 8, React Router 7, Bootstrap 5, `fetch` | Listo; catálogo desde la API con respaldo en JSON |
-| Backend ([backPawPets](https://github.com/andcarrasco/backPawPets)) | Spring Boot 4.1.2, Java 17, Spring Data MongoDB, en capas `model`, `repository`, `service`, `controller` | En desarrollo |
-| Base de datos | MongoDB Atlas, base `pawpets` | Colección `productos` cargada |
-| Documentación de la API | Swagger con springdoc-openapi 3.2.0 | Pendiente |
-| Despliegue | Railway, con un servicio por parte dentro del mismo proyecto | Frontend publicado; backend y base de datos pendientes |
-
-## API REST propuesta
-
-Los recursos salen de los datos que hoy están en `src/datos`. Los nombres finales los confirma el equipo al construir el backend.
-
-| Verbo | Ruta | Acción | Respuesta esperada |
-| --- | --- | --- | --- |
-| `GET` | `/api/productos` | Listar productos | `200` con la lista |
-| `GET` | `/api/productos/{id}` | Ver un producto | `200`, o `404` si no existe |
-| `POST` | `/api/productos` | Crear un producto | `201`, o `400` si faltan datos |
-| `PUT` | `/api/productos/{id}` | Actualizar un producto | `200`, o `404` |
-| `DELETE` | `/api/productos/{id}` | Eliminar un producto | `204`, o `404` |
-
-Las categorías (`/api/categorias`), los usuarios (`/api/usuarios`) y los pedidos (`/api/pedidos`) siguen el mismo patrón.
-
-Una vez publicado, el backend debe ofrecer:
-
-- **Swagger** en `/swagger-ui.html`, con todos los endpoints.
-- **Manejo global de errores** con `@RestControllerAdvice`: un id inexistente devuelve un JSON con el mensaje, no una página de error.
-- **Validaciones** con `@NotBlank` y `@Valid`: un producto sin nombre devuelve `400`.
-- **CORS** que autorice el dominio del frontend en Railway y `http://localhost:5173` para desarrollo.
-
-## Ejecución local
-
-Se requiere Node.js compatible con Vite 8 y npm.
-
-```bash
+```sh
+git clone https://github.com/andcarrasco/frontPawPets.git
+cd frontPawPets
 npm ci
-npm run dev        # http://localhost:5173 (reenvía /api a http://localhost:8081)
-npm run build      # compilación de producción en dist/
-npm run lint       # revisión con ESLint
+npm run dev
+```
+
+Abre la dirección que indica Vite (normalmente http://localhost:5173). Durante el desarrollo, Vite reenvía `/api`
+al backend en `http://localhost:8081`. Si cambias el puerto del backend, actualiza `server.proxy` en `vite.config.js`.
+
+Para entrar como administrador se puede usar `administrador@duoc.cl` con la clave `1234`.
+
+## Comprobaciones
+
+```sh
+npm run lint
+npm run build
 npm test -- --single-run
 ```
 
-Las pruebas usan Jasmine y Karma, y requieren Chrome o Chromium.
+Las pruebas usan Jasmine y Karma y necesitan Chrome instalado. No hace falta tener el backend levantado, porque las
+llamadas a la API se simulan con `src/test/utilidades/simularApi.js`. El informe de cobertura queda en
+`coverage/html/index.html`.
 
-Para ver datos de la base, levantar también el backend (`backPawPets`) en el puerto 8081. Si no está levantado, la tienda funciona igual con los JSON locales.
+## Conexión con la API
 
-## Despliegue en Railway
+Todas las llamadas pasan por `src/servicios/api.js`, que usa `fetch`. Si la API responde con un error, se muestra en
+pantalla el mensaje que manda el backend (por ejemplo, cuando un correo ya está registrado).
 
-El repositorio está conectado a Railway: cada push a `main` vuelve a publicar el frontend.
+La dirección del backend no está escrita en el código. En desarrollo la variable `VITE_API_URL` queda vacía y se usa
+el proxy de Vite. En Railway se define con la URL pública del backend (ver `.env.example`). Como Vite la incorpora al
+compilar, si cambia hay que volver a desplegar el frontend.
 
-- **Sitio publicado:** https://caso3pawpetsfinal-production.up.railway.app
-- **API publicada:** _pendiente_
+## Organización
 
-### Frontend (este repositorio)
+- `src/App.jsx`: rutas de la aplicación y carga del catálogo.
+- `src/hooks/useDatosApi.js`: pide datos a la API y entrega la carga y el error a las páginas.
+- `src/servicios/`: llamadas a la API (`api.js`, `usuarios.js`, `compras.js`), sesión, carrito y stock.
+- `src/componentes/`: Header, Footer, tarjetas de producto, formulario de usuario y `RutaProtegida`.
+- `src/paginas/`: tienda, carrito, checkout, login, registro, perfil, panel de vendedor y administración.
+- `src/test/`: pruebas con Jasmine. Cada caso indica antes del `it` los datos, la acción y el resultado esperado.
 
-Railway detecta el proyecto Vite, ejecuta `npm run build` y sirve la carpeta `dist`. No necesita configuración extra.
+## Usuarios y roles
 
-Pasos para crearlo desde cero:
+Hay tres roles: cliente, vendedor y administrador. El cliente compra en la tienda, el vendedor revisa productos y
+pedidos, y el administrador además gestiona productos, categorías y usuarios. La sesión se guarda en
+`sessionStorage` y `RutaProtegida` no deja entrar a páginas que no corresponden al rol.
 
-1. En [railway.com](https://railway.com), entrar con GitHub y elegir **New Project → Deploy from GitHub repo**.
-2. Elegir `andcarrasco/frontPawPets`.
-3. En **Settings → Networking**, pulsar **Generate Domain** para obtener la URL pública.
+El login revisa el correo y la clave contra la API, pero no usa tokens. El pago es una simulación: se puede elegir si
+sale exitoso o fallido para probar los dos casos.
 
-### Conexión con el backend
+## Despliegue
 
-La dirección del backend no se escribe en el código. Las llamadas pasan por `src/servicios/api.js`, que la lee de una variable de entorno (ver `.env.example`):
-
-| Servicio | Variable | Valor |
-| --- | --- | --- |
-| Frontend | `VITE_API_URL` | URL pública del backend, por ejemplo `https://pawpets-api.up.railway.app`. En desarrollo queda vacía y se usa el proxy de Vite |
-| Backend | `PORT` | La asigna Railway; en `application.properties` usar `server.port=${PORT:8081}` |
-| Backend | `MONGODB_URI` | Cadena de conexión de MongoDB Atlas; en `application.properties` usar `spring.mongodb.uri=${MONGODB_URI}` |
-| Backend | Orígenes permitidos en CORS | URL pública del frontend |
-
-Vite incorpora `VITE_API_URL` al compilar. Por eso, si cambia, hay que volver a desplegar el frontend.
-
-Las contraseñas y los datos de conexión se guardan solo en las variables de Railway, nunca en el repositorio.
-
-## Funcionalidades del frontend
-
-**Tienda:** inicio y navegación adaptable; catálogo, categorías y ofertas; búsqueda y detalle de productos; carrito con cantidades y total; checkout con entrega a domicilio o retiro; pago simulado con resultado exitoso o fallido y reintento.
-
-**Usuarios:** registro e inicio de sesión simulados; roles de cliente, vendedor y administrador; edición de perfil; sesión en `sessionStorage`; rutas protegidas según el rol.
-
-**Administración:** consulta de productos con filtro de stock crítico; categorías con la cantidad de productos; gestión de usuarios; reportes de ventas simuladas; historial y detalle de pedidos con comprobante imprimible.
-
-### Datos actuales
-
-`App.jsx` pide el catálogo con el hook `src/hooks/useDatosApi.js`. Si la API no responde, usa `src/datos/productos.json` y `src/datos/categorias.json`. Usuarios y pedidos todavía son locales. El carrito y los pedidos viven en el estado de React y se pierden al recargar la página. La autenticación es simulada, así que la protección de rutas no reemplaza la autorización de un servidor. El pago y los comprobantes son demostrativos.
-
-## Pruebas
-
-Hay 45 casos en `src/test`, verificados localmente el 23 de octubre de 2026. Antes de cada `it` hay tres comentarios: los datos iniciales, la acción y el resultado esperado.
-
-| Archivo | Casos | Qué comprueba |
-| --- | ---: | --- |
-| `Login.spec.jsx` | 3 | Campos del login, correo inválido y rol obligatorio |
-| `catalogo.spec.jsx` | 5 | Productos del JSON, detalle, filtro de stock y cantidad por categoría |
-| `tienda.spec.jsx` | 3 | Tarjetas por props, agregar al carrito y cambio de cantidad |
-| `compras.spec.js` | 6 | Agregar y quitar, límites de stock, cálculo del pedido y validación de entrega |
-| `checkout.spec.jsx` | 5 | Autocompletado, pago fallido con reintento, pago exitoso y datos de otra cuenta |
-| `integracionCompra.spec.jsx` | 8 | Flujo completo de login, compra, perfil, sesión y comprobante |
-| `reportes.spec.jsx` | 4 | Reporte vacío, ventas del mes y comprobante por ID |
-| `headerRoles.spec.jsx` | 5 | Enlaces según el rol y menú principal único |
-| `rutaProtegida.spec.jsx` | 6 | Acceso o redirección según sesión y rol |
-
-Karma genera el informe de cobertura en `coverage/html/index.html`.
-
-Cuando exista la API, se probará además con una **colección de Postman** que incluya las cinco operaciones CRUD y al menos un caso de error.
-
-## Checklist de la Evaluación 3
-
-| Requisito | Estado |
-| --- | --- |
-| Frontend React publicado en Railway | ✅ |
-| Backend Spring Boot separado en capas `model`, `repository`, `service`, `controller` | ⬜ |
-| CRUD completo: `GET` (todos y uno), `POST`, `PUT` y `DELETE` | ⬜ |
-| Códigos de estado correctos con `ResponseEntity` (`201`, `204`, `404`) | ⬜ |
-| Manejo global de errores con `@RestControllerAdvice` | ⬜ |
-| Validaciones con `@NotBlank` y `@Valid` (`400`) | ⬜ |
-| Swagger funcionando en `/swagger-ui.html` | ⬜ |
-| Base de datos (MongoDB Atlas) conectada al backend | ⬜ |
-| Backend publicado en Railway | ⬜ |
-| Frontend conectado a la API con `fetch`, en lugar del JSON estático | 🟨 Catálogo listo; usuarios y pedidos pendientes |
-| URL del backend en `VITE_API_URL`, no escrita en el código | ✅ |
-| CORS configurado para el frontend local y el publicado | ⬜ |
-| Colección de Postman con el CRUD y un caso de error | ⬜ |
-
-**Puntos extra sugeridos por las guías:** búsqueda, paginación, excepciones personalizadas, pruebas unitarias del backend, autenticación real y mensajes de error en pantalla.
+El repositorio está conectado a Railway y cada push a `main` vuelve a publicar el sitio. Railway detecta el proyecto
+Vite, ejecuta `npm run build` y sirve la carpeta `dist`.
 
 ## Historial
 
-La Evaluación 2 se desarrolló en [Piita3569/Caso3_PawPets_React](https://github.com/Piita3569/Caso3_PawPets_React). Ahí están el historial de commits y los aportes de cada integrante. Este repositorio parte de una copia limpia de su rama `main`.
+La Evaluación 2 se hizo en [Piita3569/Caso3_PawPets_React](https://github.com/Piita3569/Caso3_PawPets_React), donde
+están los commits y aportes de esa etapa. Este repositorio parte de una copia de esa versión.

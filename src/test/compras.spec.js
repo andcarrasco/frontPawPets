@@ -1,9 +1,11 @@
 import productos from '../datos/productos.json'
-import { confirmarCompra, validarCliente } from '../servicios/compras.js'
+import { armarPedido, confirmarCompra, validarCliente } from '../servicios/compras.js'
 import { agregarAlCarrito, cambiarCantidad, quitarDelCarrito } from '../servicios/carrito.js'
+import { simularApi, errorApi } from './utilidades/simularApi.js'
+import { rutasPedidos } from './utilidades/pedidosSimulados.js'
 
-// Revisa cantidades, stock y los datos que se copian al resumen.
-describe('Carrito y compra simulada', () => {
+// Revisa cantidades, stock, el pedido que se envía a la API y la respuesta del backend.
+describe('Carrito y compra', () => {
   const cliente = {
     nombre: 'Cliente de prueba', email: 'prueba@gmail.com', direccion: 'Calle de prueba 123',
     region: 'Metropolitana', comuna: 'Santiago', entrega: 'domicilio'
@@ -31,39 +33,51 @@ describe('Carrito y compra simulada', () => {
     expect(() => cambiarCantidad(carrito, producto, 1.5)).toThrowError(/entero/)
   })
 
-  // Datos: Usuario 7 y dos unidades del primer producto, a $25.000 cada una.
-  // Acción: Confirmar la compra con los datos válidos del cliente.
-  // Resultado esperado: El pedido pertenece al usuario 7, contiene 2 unidades, suma $50.000 y no modifica el JSON.
-  it('calcula el total del pedido sin cambiar los productos del JSON', () => {
-    const original = JSON.stringify(productos)
-    const pedido = confirmarCompra([{ productoId: productos[0].id, cantidad: 2 }], cliente, productos, 7)
+  // Datos: Usuario 7 y dos unidades del primer producto, con despacho a domicilio.
+  // Acción: Armar el pedido que se envía a la API.
+  // Resultado esperado: Lleva el usuario, el cliente, la dirección y solo id y cantidad de cada producto.
+  it('arma el pedido con ids y cantidades para enviarlo a la API', () => {
+    const pedido = armarPedido([{ productoId: productos[0].id, cantidad: 2 }], cliente, productos, 7)
+
     expect(pedido.usuarioId).toBe(7)
-    expect(pedido.total).toBe(productos[0].precio * 2)
-    expect(pedido.productos[0].cantidad).toBe(2)
-    expect(JSON.stringify(productos)).toBe(original)
+    expect(pedido.cliente).toEqual({ nombre: 'Cliente de prueba', email: 'prueba@gmail.com' })
+    expect(pedido.direccion).toEqual({ calle: 'Calle de prueba 123', region: 'Metropolitana', comuna: 'Santiago' })
+    expect(pedido.items).toEqual([{ productoId: productos[0].id, cantidad: 2 }])
   })
 
-  // Datos: Una copia del catálogo y un pedido con una unidad del primer producto.
-  // Acción: Cambiar el nombre y subir $1.000 al precio de la copia del catálogo.
-  // Resultado esperado: El pedido conserva el nombre y el precio que tenía al confirmar la compra.
-  it('copia nombre y precio al resumen sin reutilizar el objeto del catálogo', () => {
-    const ejemplos = productos.map(producto => ({ ...producto }))
-    const pedido = confirmarCompra([{ productoId: ejemplos[0].id, cantidad: 1 }], cliente, ejemplos)
-    ejemplos[0].nombre = 'Nombre de otra demostración'
-    ejemplos[0].precio += 1000
-    expect(pedido.productos[0].nombre).toBe(productos[0].nombre)
-    expect(pedido.productos[0].precio).toBe(productos[0].precio)
+  // Datos: Una API simulada que calcula el total con el precio del catálogo ($25.000).
+  // Acción: Confirmar la compra de dos unidades del primer producto.
+  // Resultado esperado: Se hace POST a /api/pedidos y se recibe el pedido con número 100 y total $50.000.
+  it('envía la compra a la API y devuelve el pedido guardado', async () => {
+    const api = simularApi(rutasPedidos([], productos))
+
+    const pedido = await confirmarCompra([{ productoId: productos[0].id, cantidad: 2 }], cliente, productos, 7)
+
+    expect(api.llamadas[0].metodo).toBe('POST')
+    expect(api.llamadas[0].ruta).toBe('/api/pedidos')
+    expect(pedido.id).toBe(100)
+    expect(pedido.total).toBe(productos[0].precio * 2)
+  })
+
+  // Datos: La API responde 409 porque otro cliente compró las últimas unidades.
+  // Acción: Confirmar la compra.
+  // Resultado esperado: La promesa se rechaza con el mensaje del backend.
+  it('entrega el error de stock que responde la API', async () => {
+    simularApi({ 'POST /api/pedidos': errorApi(409, 'No hay stock suficiente de Master Dog Adulto 15 kg. Quedan 0 unidades.') })
+
+    await expectAsync(confirmarCompra([{ productoId: productos[0].id, cantidad: 1 }], cliente, productos))
+      .toBeRejectedWithError(/No hay stock suficiente/)
   })
 
   // Datos: Cliente válido y tres carritos: sin stock suficiente, vacío y con producto inexistente.
-  // Acción: Intentar confirmar la compra de cada carrito.
-  // Resultado esperado: Los tres intentos lanzan su error correspondiente y el JSON permanece igual.
-  it('rechaza una compra inválida y mantiene intactos los datos estáticos', () => {
-    const original = JSON.stringify(productos)
-    expect(() => confirmarCompra([{ productoId: productos[0].id, cantidad: productos[0].stock + 1 }], cliente, productos)).toThrowError(/stock/)
-    expect(() => confirmarCompra([], cliente, productos)).toThrowError(/vacío/)
-    expect(() => confirmarCompra([{ productoId: -1, cantidad: 1 }], cliente, productos)).toThrowError(/disponible/)
-    expect(JSON.stringify(productos)).toBe(original)
+  // Acción: Armar cada pedido.
+  // Resultado esperado: Los tres lanzan su error antes de llamar a la API.
+  it('rechaza una compra inválida sin llamar a la API', () => {
+    const api = simularApi({})
+    expect(() => armarPedido([{ productoId: productos[0].id, cantidad: productos[0].stock + 1 }], cliente, productos)).toThrowError(/stock/)
+    expect(() => armarPedido([], cliente, productos)).toThrowError(/vacío/)
+    expect(() => armarPedido([{ productoId: -1, cantidad: 1 }], cliente, productos)).toThrowError(/disponible/)
+    expect(api.espia).not.toHaveBeenCalled()
   })
 
   // Datos: Cliente con comuna incorrecta, cliente sin dirección y cliente con retiro en tienda.

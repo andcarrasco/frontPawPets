@@ -4,9 +4,13 @@ import { ContenidoApp } from '../App.jsx'
 import { iniciarSesion, obtenerSesion } from '../servicios/sesion.js'
 import { simularApi } from './utilidades/simularApi.js'
 import { rutasUsuarios } from './utilidades/usuariosSimulados.js'
+import { rutasPedidos } from './utilidades/pedidosSimulados.js'
+import productos from '../datos/productos.json'
+import categorias from '../datos/categorias.json'
 
 // Recorre la aplicación para comprobar que sesión, perfil y compra usan los mismos datos.
-// Los usuarios vienen de la API simulada (rutasUsuarios); el catálogo usa el JSON local.
+// Catálogo, usuarios y pedidos vienen de la API simulada.
+// El primer pedido que crea la API simulada tiene el número 100.
 describe('Compra con usuario y sesión', () => {
   let cliente
   let segundoUsuario
@@ -26,7 +30,12 @@ describe('Compra con usuario y sesión', () => {
       id: 11, nombre: 'Otra persona', email: 'otra.persona@gmail.com', password: '1234', rut: '19011022K',
       direccion: 'Calle Dos 456', region: 'Valparaíso', comuna: 'Villa Alemana', rol: 'vendedor'
     }
-    simularApi(rutasUsuarios([administrador, cliente, segundoUsuario]))
+    simularApi({
+      'GET /api/productos': productos,
+      'GET /api/categorias': categorias,
+      ...rutasUsuarios([administrador, cliente, segundoUsuario]),
+      ...rutasPedidos([], productos)
+    })
   })
 
   afterEach(() => {
@@ -44,10 +53,11 @@ describe('Compra con usuario y sesión', () => {
     fireEvent.click(screen.getByRole('link', { name: 'Mi perfil' }))
   }
 
-  function iniciarCompra() {
+  // El catálogo llega desde la API: espera a que aparezcan los productos antes de agregar uno.
+  async function iniciarCompra() {
     fireEvent.click(screen.getByRole('button', { name: 'Productos', exact: true }))
     fireEvent.click(screen.getByRole('link', { name: 'Catálogo' }))
-    fireEvent.click(screen.getAllByRole('button', { name: 'Agregar al carrito' })[0])
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Agregar al carrito' }))[0])
     continuarCompra()
   }
 
@@ -71,14 +81,14 @@ describe('Compra con usuario y sesión', () => {
   it('carga los datos del cliente después del login y completa su compra', async () => {
     mostrar('/login')
     await ingresar(cliente)
-    iniciarCompra()
+    await iniciarCompra()
 
     expect(screen.getByLabelText('Nombre completo').value).toBe(cliente.nombre)
     expect(screen.getByLabelText('Dirección y número').value).toBe(cliente.direccion)
     expect(screen.getByLabelText('Región').value).toBe('Biobío')
     expect(screen.getByLabelText('Comuna').value).toBe('Concepción')
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar compra simulada' }))
-    expect(screen.getByRole('heading', { name: 'Compra realizada con éxito' })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'Compra realizada con éxito' })).toBeTruthy()
     expect(screen.getByText(/Dirección: Calle Uno 123, Concepción, Biobío/)).toBeTruthy()
     fireEvent.click(screen.getByRole('link', { name: /Carrito/ }))
     expect(screen.getByText('Tu carrito está vacío.')).toBeTruthy()
@@ -96,7 +106,7 @@ describe('Compra con usuario y sesión', () => {
     fireEvent.change(screen.getByLabelText('Comuna'), { target: { value: 'La Florida' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
     await screen.findByText('Perfil actualizado correctamente.')
-    iniciarCompra()
+    await iniciarCompra()
 
     expect(obtenerSesion().nombre).toBe('Nombre actualizado')
     expect(screen.getByLabelText('Nombre completo').value).toBe('Nombre actualizado')
@@ -108,9 +118,9 @@ describe('Compra con usuario y sesión', () => {
   // Datos: Cliente con sesión iniciada y un producto en el carrito.
   // Acción: Cerrar sesión desde el perfil y comprar como Invitado, con correo invitado@gmail.com y retiro.
   // Resultado esperado: Se borra la sesión y los datos anteriores; se conserva el carrito y la compra exitosa identifica al invitado.
-  it('conserva el carrito al cerrar sesión y permite comprar como invitado', () => {
+  it('conserva el carrito al cerrar sesión y permite comprar como invitado', async () => {
     mostrar('/productos', cliente)
-    iniciarCompra()
+    await iniciarCompra()
     verPerfil()
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }))
     continuarCompra()
@@ -123,16 +133,16 @@ describe('Compra con usuario y sesión', () => {
     fireEvent.change(screen.getByLabelText('Correo electrónico'), { target: { value: 'invitado@gmail.com' } })
     fireEvent.change(screen.getByLabelText('Opción de entrega'), { target: { value: 'retiro' } })
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar compra simulada' }))
-    expect(screen.getByRole('heading', { name: 'Compra realizada con éxito' })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'Compra realizada con éxito' })).toBeTruthy()
     expect(screen.getByText('Cliente: Invitado — invitado@gmail.com')).toBeTruthy()
   })
 
   // Datos: Vendedor con sesión iniciada y un producto agregado.
   // Acción: Cerrar sesión desde el panel vendedor y volver al checkout.
   // Resultado esperado: La sesión queda vacía y el checkout no conserva el nombre ni la dirección del vendedor.
-  it('limpia los datos del checkout al cerrar sesión desde el panel vendedor', () => {
+  it('limpia los datos del checkout al cerrar sesión desde el panel vendedor', async () => {
     mostrar('/productos', segundoUsuario)
-    iniciarCompra()
+    await iniciarCompra()
     fireEvent.click(screen.getByRole('link', { name: 'Vendedor' }))
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }))
     continuarCompra()
@@ -147,7 +157,7 @@ describe('Compra con usuario y sesión', () => {
   // Resultado esperado: El checkout muestra Otra persona, Calle Dos 456 y Villa Alemana.
   it('carga la nueva cuenta al volver a comprar después de un pago fallido', async () => {
     mostrar('/productos', cliente)
-    iniciarCompra()
+    await iniciarCompra()
     fireEvent.change(screen.getByLabelText('Resultado del pago de demostración'), { target: { value: 'fallido' } })
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar compra simulada' }))
     verPerfil()
@@ -160,12 +170,10 @@ describe('Compra con usuario y sesión', () => {
     expect(screen.getByLabelText('Comuna').value).toBe('Villa Alemana')
   })
 
-  // Datos: Cliente con una compra cuyo número se fija en 100.
+  // Datos: Cliente con una compra; la API simulada le asigna el número 100.
   // Acción: Cerrar sesión y abrir otra vez /compra/exito/100.
   // Resultado esperado: Se muestra Resumen no disponible y no aparecen los datos personales del cliente.
-  it('deja de mostrar el resumen de la compra al cerrar sesión', () => {
-    // Fija el número de pedido para poder abrir otra vez su misma dirección.
-    spyOn(Date, 'now').and.returnValue(100)
+  it('deja de mostrar el resumen de la compra al cerrar sesión', async () => {
     iniciarSesion(cliente)
     render(
       <MemoryRouter initialEntries={['/productos']}>
@@ -173,9 +181,9 @@ describe('Compra con usuario y sesión', () => {
         <Link to="/compra/exito/100">Abrir compra anterior</Link>
       </MemoryRouter>
     )
-    iniciarCompra()
+    await iniciarCompra()
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar compra simulada' }))
-    expect(screen.getByRole('heading', { name: 'Compra realizada con éxito' })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'Compra realizada con éxito' })).toBeTruthy()
     verPerfil()
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }))
     fireEvent.click(screen.getByRole('link', { name: 'Abrir compra anterior' }))
@@ -193,7 +201,7 @@ describe('Compra con usuario y sesión', () => {
     fireEvent.change(await screen.findByLabelText('Nombre completo'), { target: { value: 'Nombre editado' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar usuario' }))
     await screen.findByRole('heading', { name: 'Administración de usuarios' })
-    iniciarCompra()
+    await iniciarCompra()
 
     expect(obtenerSesion().nombre).toBe('Nombre editado')
     expect(screen.getByLabelText('Nombre completo').value).toBe('Nombre editado')
@@ -204,8 +212,9 @@ describe('Compra con usuario y sesión', () => {
   // Resultado esperado: El reporte muestra al cliente y el comprobante abre el pedido con total de $25.000.
   it('incluye la compra en reportes y abre su comprobante por ID', async () => {
     mostrar('/productos', cliente)
-    iniciarCompra()
+    await iniciarCompra()
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar compra simulada' }))
+    expect(await screen.findByRole('heading', { name: 'Compra realizada con éxito' })).toBeTruthy()
     verPerfil()
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }))
     await ingresar(administrador)
@@ -213,7 +222,8 @@ describe('Compra con usuario y sesión', () => {
     expect(screen.getByText('Cliente de prueba')).toBeTruthy()
     fireEvent.click(screen.getByRole('link', { name: 'Ver detalle' }))
 
-    expect(screen.getByRole('heading', { name: /Detalle del pedido/ })).toBeTruthy()
+    // El comprobante se pide a la API: GET /api/pedidos/100.
+    expect(await screen.findByRole('heading', { name: 'Detalle del pedido #100' })).toBeTruthy()
     expect(screen.getByTestId('total-compra').textContent).toContain('25.000')
   })
 })
