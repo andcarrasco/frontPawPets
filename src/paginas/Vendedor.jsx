@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { obtenerSesion } from '../servicios/sesion.js'
 import { listarUsuarios } from '../servicios/usuarios.js'
+import { obtenerReporteVentas, formatoPrecio } from '../servicios/reportes.js'
 import { Navigate, useNavigate } from 'react-router-dom'
 
 function Vendedor({ productos, onCerrarSesion }) {
@@ -8,12 +9,21 @@ function Vendedor({ productos, onCerrarSesion }) {
   const navigate = useNavigate()
   const [clientes, setClientes] = useState([])
   const [errorClientes, setErrorClientes] = useState('')
+  const [ventas, setVentas] = useState(null)
+  const [errorVentas, setErrorVentas] = useState('')
 
   // Los clientes se piden a la API al abrir el panel.
   useEffect(() => {
     listarUsuarios()
       .then(usuarios => setClientes(usuarios.filter(u => u.rol === 'cliente')))
       .catch(err => setErrorClientes(err.message))
+  }, [])
+
+  // Ventas del mes desde GET /api/reportes/ventas.
+  useEffect(() => {
+    obtenerReporteVentas()
+      .then(setVentas)
+      .catch(err => setErrorVentas(err.message))
   }, [])
 
   if (!sesion) {
@@ -112,7 +122,24 @@ function Vendedor({ productos, onCerrarSesion }) {
         <div className="col-12">
           <div className="card p-4">
             <h3>Mis ventas</h3>
-            <p className="text-muted">Las ventas todavía no están disponibles en este panel.</p>
+            <p className="text-muted">Ventas de la tienda durante el mes actual.</p>
+            {errorVentas && <div className="alert alert-warning">{errorVentas}</div>}
+            {ventas && (
+              <>
+                <p className="fs-4 fw-bold mb-1">{formatoPrecio(ventas.totalVendido)}</p>
+                <p>{ventas.cantidadPedidos} pedidos este mes</p>
+                {ventas.productosMasVendidos.length > 0 && (
+                  <ul className="list-group">
+                    {ventas.productosMasVendidos.map(producto => (
+                      <li key={producto.productoId} className="list-group-item d-flex justify-content-between">
+                        <span>{producto.nombre}</span>
+                        <span>{producto.cantidad} unidades</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
           </div>
         </div>
         {/* fin card ventas */}
