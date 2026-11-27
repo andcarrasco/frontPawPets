@@ -45,8 +45,8 @@ export function ContenidoApp() {
   const [pedidos, setPedidos] = useState([])
   const location = useLocation()
   // Catálogo desde la API; si el backend no responde se usan los JSON locales.
-  const { datos: productos } = useDatosApi('/api/productos', productosLocales)
-  const { datos: categorias } = useDatosApi('/api/categorias', categoriasLocales)
+  const { datos: productos, recargar: recargarProductos } = useDatosApi('/api/productos', productosLocales)
+  const { datos: categorias, recargar: recargarCategorias } = useDatosApi('/api/categorias', categoriasLocales)
 
   function agregar(id) {
     const producto = productos.find(producto => producto.id === id)
@@ -99,8 +99,8 @@ export function ContenidoApp() {
           <Route element={<RutaProtegida usuario={usuario} rolPermitido="administrador" />}>
           <Route path="/admin/reportes" element={<AdminReportes productos={productos} pedidos={pedidos} />} />
           <Route path="/admin/pedidos/:id" element={<DetallePedido pedidos={pedidos} />} />
-          <Route path="/admin/productos" element={<AdminProductos productos={productos} categorias={categorias} />} />
-          <Route path="/admin/categorias" element={<AdminCategorias categorias={categorias} productos={productos} />} />
+          <Route path="/admin/productos" element={<AdminProductos productos={productos} categorias={categorias} onCambio={recargarProductos} />} />
+          <Route path="/admin/categorias" element={<AdminCategorias categorias={categorias} productos={productos} onCambio={recargarCategorias} />} />
           </Route>
           <Route path="/productos" element={<Catalogo productos={productos} onAgregar={agregar} />} />
           <Route path="/productos/:id" element={<DetalleProducto key={location.pathname} productos={productos} onAgregar={agregar} />} />
