@@ -5,6 +5,7 @@ import { iniciarSesion, obtenerSesion } from '../servicios/sesion.js'
 import { simularApi } from './utilidades/simularApi.js'
 import { rutasUsuarios } from './utilidades/usuariosSimulados.js'
 import { rutasPedidos } from './utilidades/pedidosSimulados.js'
+import { rutasReportes } from './utilidades/reportesSimulados.js'
 import productos from '../datos/productos.json'
 import categorias from '../datos/categorias.json'
 
@@ -30,11 +31,13 @@ describe('Compra con usuario y sesión', () => {
       id: 11, nombre: 'Otra persona', email: 'otra.persona@gmail.com', password: '1234', rut: '19011022K',
       direccion: 'Calle Dos 456', region: 'Valparaíso', comuna: 'Villa Alemana', rol: 'vendedor'
     }
+    const pedidos = []
     simularApi({
       'GET /api/productos': productos,
       'GET /api/categorias': categorias,
       ...rutasUsuarios([administrador, cliente, segundoUsuario]),
-      ...rutasPedidos([], productos)
+      ...rutasPedidos(pedidos, productos),
+      ...rutasReportes(pedidos)
     })
   })
 
@@ -219,7 +222,8 @@ describe('Compra con usuario y sesión', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }))
     await ingresar(administrador)
     fireEvent.click(screen.getByRole('link', { name: 'Reportes' }))
-    expect(screen.getByText('Cliente de prueba')).toBeTruthy()
+    // Los reportes piden los pedidos a la API.
+    expect(await screen.findByText('Cliente de prueba')).toBeTruthy()
     fireEvent.click(screen.getByRole('link', { name: 'Ver detalle' }))
 
     // El comprobante se pide a la API: GET /api/pedidos/100.
